@@ -1580,6 +1580,31 @@ not {0}'.format(type(ids)))
 
         return self.request('Search', content)
 
+    # Appointments
+    def create_appointment(self, content):
+        """
+        """
+
+        return self.request('CreateAppointment', content)
+
+    def get_appointment(self, apt_id):
+        """
+        :param apt_id: ID of an appointment
+        """
+
+        resp = self.request_single('GetAppointment', {'id': apt_id})
+        return resp
+
+    def modify_appointment(self, apt_id, change_dic):
+        """ apt_id must be like int-int made with ['id'] key and
+        ['inv']['id'] key
+        """
+
+        attrs = change_dic
+        attrs['id'] = apt_id
+
+        self.request('ModifyAppointment', attrs)
+
 
 class ZimbraAPISession:
     """Handle the login, the session expiration and the generation of the
