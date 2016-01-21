@@ -1581,9 +1581,51 @@ not {0}'.format(type(ids)))
         return self.request('Search', content)
 
     # Appointments
-    def create_appointment(self, content):
+    def create_appointment(
+        self,
+        subject,
+        begin,
+        end,
+        organizer,
+        calendar_id='10',
+        description='',
+        attendees='',
+        location='',
+        equipment='',
+        all_day='0',
+        repeat_type='',
+        repeat_weekdays='',
+        repeat_freq='',
+        repeat_monthly_day_number='',
+        repeat_monthly_day_every='',
+        repeat_monthly_sequence='',
+        repeat_monthly_days='',
+        repeat_end_after='',
+        repeat_end_by=''
+    ):
         """
         """
+
+        content = {'m': {'inv': {'comp': {}}}}
+        content['m']['l'] = calendar_id
+#        content['m']['inv']['comp']['alarm'] = {}
+        content['m']['inv']['comp']['allDay'] = all_day
+        content['m']['inv']['comp']['or'] = [{'a': organizer}]
+        content['m']['inv']['comp']['at'] = []
+        if attendees:
+            for attendee in attendees:
+                content['m']['inv']['comp']['at'].append({
+                    'a': attendee,
+                    't': 't'
+                })
+            content['m']['e'] = content['m']['inv']['comp']['at']
+        content['m']['inv']['comp']['loc'] = location
+        content['m']['inv']['comp']['name'] = subject
+        content['m']['su'] = subject
+        content['m']['inv']['comp']['descHtml'] = {'_content': description}
+#        content['m']['inv']['comp']['recur'] = {'add': {'rule': {}}}
+        content['m']['inv']['comp']['s'] = {'d': begin}
+        content['m']['inv']['comp']['e'] = {'d': end}
 
         return self.request('CreateAppointment', content)
 
