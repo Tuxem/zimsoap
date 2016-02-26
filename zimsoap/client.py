@@ -1491,6 +1491,95 @@ not {0}'.format(type(ids)))
 
         return self.request('Search', content)
 
+    # Filter
+
+    def add_filter_rule(self, name, condition, filters, actions, active=1):
+        """
+        :param name: filter name
+        :param condition: allof or anyof
+        :param filters: dict of filters
+        :param actions: dict of actions
+        """
+
+        filters['condition'] = condition
+
+        new_rule = [{
+            'name': name,
+            'active': active,
+            'filterTests': filters,
+            'filterActions': actions
+        }]
+
+        rules = [new_rule]
+
+        prev_rules = self.get_filter_rules()
+        if isinstance(prev_rules, dict) and prev_rules:
+            prev_rules = [prev_rules]
+
+        # if there is already some rules
+        if prev_rules:
+            rules = new_rule + prev_rules
+        else:
+            rules = new_rule
+
+        content = {
+            'filterRules': {
+                'filterRule': rules
+            }
+        }
+
+        return self.request('ModifyFilterRules', content)
+
+    def get_filter_rules(self):
+        """ Return list of filter rules
+        """
+
+        try:
+            return self.request('GetFilterRules')['filterRules']['filterRule']
+        except KeyError:
+            return {}
+
+    def apply_filter_rule(self, name, query='in:inbox'):
+        content = {
+            'filterRules': {
+                'filterRule': {'name': name}
+                },
+            'query': {'_content': query}
+        }
+        return self.request('ApplyFilterRules', content)
+
+    def delete_filter_rule(self, name):
+        """
+        :returns: number of rules deleted
+        """
+        updated_rules = []
+        rules = self.get_filter_rules()
+        total = 0
+
+        if isinstance(rules, list):
+            for rule in rules:
+                if not rule['name'] == name:
+                    updated_rules.append(rule)
+                else:
+                    total += 1
+
+        elif isinstance(rules, dict):
+            if not rules['name'] == name:
+                updated_rules.append(rules)
+            else:
+                updated_rules = None
+                total += 1
+
+        if rules != updated_rules:
+            content = {
+                'filterRules': {
+                    'filterRule': updated_rules
+                }
+            }
+            self.request('ModifyFilterRules', content)
+
+        return total
+
 
 class ZimbraAPISession:
     """Handle the login, the session expiration and the generation of the
