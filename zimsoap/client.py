@@ -1647,6 +1647,18 @@ not {0}'.format(type(ids)))
 
         self.request('ModifyAppointment', attrs)
 
+    def cancel_appointment(self, apt_id, comp_num):
+        """
+        :param apt_id: format : xxx-xxxx, invId of an appointment
+        :param comp_num: compNum of an appointment
+        """
+
+        attrs = {
+            'id': str(apt_id),
+            'comp': str(comp_num)
+        }
+        self.request('CancelAppointment', attrs)
+
 
 class ZimbraAPISession:
     """Handle the login, the session expiration and the generation of the
