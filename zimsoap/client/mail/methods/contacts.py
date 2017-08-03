@@ -1,136 +1,217 @@
+# Contact have severals methods to modify it because it's not an
+# object as simple as account or domain
+
 from zimsoap import zobjects
 
 
 class MethodMixin:
-    def create_contact(self, attrs, members=None, folder_id=None, tags=None):
-        """Create a contact
+    def create_contact(self, params):
+        """Create a new contact
+        example of params =
+        {
+            'cn': {
+                'l': '13',
+                'a': [
+                    {
+                        'n': 'bla',
+                        '_content': 'mavaleur'
+                    }
+                ]
+                'm': [
+                    {
+                        'op': '+',
+                        'type': 'G',
+                        'value': 'uid='
+                    }
+                ]
+            }
+        }
 
-        Does not include VCARD nor group membership yet
+        :param contact: a zobject Contact
+        :type contact: zobjects.mail.Contact
 
-        XML example :
-        <cn l="7> ## ContactSpec
-            <a n="lastName">MARTIN</a>
-            <a n="firstName">Pierre</a>
-            <a n="email">pmartin@example.com</a>
-        </cn>
-        Which would be in zimsoap : attrs = { 'lastname': 'MARTIN',
-                                        'firstname': 'Pierre',
-                                        'email': 'pmartin@example.com' }
-                                    folder_id = 7
-
-        :param folder_id: a string of the ID's folder where to create
-        contact. Default '7'
-        :param tags:     comma-separated list of tag names
-        :param attrs:   a dictionary of attributes to set ({key:value,...}). At
-        least one attr is required
-        :returns:       the created zobjects.Contact
+        :returns: the created zobjects.Contact
+        :rtype: zobjects.mail.Contact
         """
-        cn = {}
-        if folder_id:
-            cn['l'] = str(folder_id)
-        if tags:
-            tags = self._return_comma_list(tags)
-            cn['tn'] = tags
-        if members:
-            cn['m'] = members
+        return self.request_single(
+            'CreateContact', params, zobjects.mail.Contact)
 
+    def get_contacts(self, f={}):
+        """ Get all contacts for the current user or selected ones with
+        contacts parameter
+
+        :param f: a dict to filter contacts based on SOAP attributes
+        :type f: dict
+
+        :returns: a list of contact objects or None
+        :rtype: [zobjects.mail.Contact]
+        """
+
+        return self.request_list(
+            'GetContacts', f, zobjects.mail.Contact)
+
+    def modify_contact(self, params):
+        """
+        Modify a contact. By default, it will merge. Set
+        params={'replace': '1'} to replace attributes values.
+
+        {
+            'replace': True,
+            'cn': {
+                'id': 244,
+                'a': [
+                    {
+                        'n': 'bla',
+                        '_content': 'mavaleur'
+                    }
+                ]
+                'm': [
+                    {
+                        'op': '+',
+                        'type': 'G',
+                        'value': 'uid='
+                    }
+                ]
+            }
+        }
+
+        :param params: parameters of informations to modify
+        :type params: dict
+
+        :returns:       the modified zobject Contact
+        :rtype: zobjects.mail.Contact
+        """
+
+        return self.request_single(
+            'ModifyContact', params, zobjects.mail.Contact)
+
+    def modify_contact_attributes(self, contact, attrs):
+        """
+        :param contact: a zobject contact to use as selector
+        :type contact: zobjects.mail.Contact
+
+        :param attrs: a dict of attributes
+        :type attrs: dict
+
+        :returns: the modified zobject
+        :rtype: zobjects.mail.Contact
+        """
+
+        a = [{'n': k, '_content': v} for k, v in attrs.items()]
+        params = {
+            'cn': {
+                'id': contact.id,
+                'a': a
+            }
+        }
+
+        return self.request_single(
+            'ModifyContact', params, zobjects.mail.Contact)
+
+    def create_group(self, name, members, attrs={}, **kwargs):
+        """
+        :param name: the group nickname
+        :type attrs: string
+
+        :param members: a list of zobject ContactGroupMember
+        :type members: [zobjects.mail.ContactGroupMember]
+
+        :param attrs: a dict of attributes
+        :type attrs: dict
+
+        :param kwargs: infos like l for folder_id or t for tags. cf SOAP doc
+        :type kwargs: kwargs
+
+        :returns: the modified zobject
+        :rtype: zobjects.mail.Contact
+        """
+        attrs['type'] = 'group'
+        attrs['nickname'] = name
         attrs = [{'n': k, '_content': v} for k, v in attrs.items()]
-        cn['a'] = attrs
-        resp = self.request_single('CreateContact', {'cn': cn})
 
-        return zobjects.mail.Contact.from_dict(resp)
+        kwargs['a'] = attrs
+        kwargs['m'] = []
 
-    def get_contacts(self, ids=None, **kwargs):
-        """ Get all contacts for the current user
+        for member in members:
+            kwargs['m'].append({'type': member.type, 'value': member.value})
 
-        :param l: string of a folder id
-        :param ids: An coma separated list of contact's ID to look for
+        params = {'cn': kwargs}
 
-        :returns: a list of zobjects.Contact
-        """
-        params = {}
-        if ids:
-            ids = self._return_comma_list(ids)
-            params['cn'] = {'id': ids}
+        return self.request_single(
+            'CreateContact', params, zobjects.mail.Contact)
 
-        for key, value in kwargs.items():
-            if key in ['a', 'ma']:
-                params[key] = {'n': value}
-            else:
-                params[key] = value
-
-        contacts = self.request_list('GetContacts', params)
-
-        return [zobjects.mail.Contact.from_dict(i) for i in contacts]
-
-    def modify_contact(self, contact_id, attrs=None, members=None, tags=None):
-        """
-        :param contact_id: zimbra id of the targetd contact
-        :param attrs  : a dictionary of attributes to set ({key:value,...})
-        :param members: list of dict representing contacts and
-        operation (+|-|reset)
-        :param tags:    comma-separated list of tag names
-        :returns:       the modified zobjects.Contact
-        """
-        cn = {}
-        if tags:
-            tags = self._return_comma_list(tags)
-            cn['tn'] = tags
-        if members:
-            cn['m'] = members
-        if attrs:
-            attrs = [{'n': k, '_content': v} for k, v in attrs.items()]
-            cn['a'] = attrs
-
-        cn['id'] = contact_id
-        resp = self.request_single('ModifyContact', {'cn': cn})
-
-        return zobjects.mail.Contact.from_dict(resp)
-
-    def delete_contacts(self, ids):
+    def delete_contacts(self, contacts):
         """ Delete selected contacts for the current user
 
-        :param ids: list of ids
+        :param contacts: a list of Contacts object to use as filter
+        :type contacts: [zobjects.mail.Contact]
+
+        :returns: None (the API returns nothing)
         """
 
-        str_ids = self._return_comma_list(ids)
+        str_ids = self._return_comma_list(contacts)
         self.request('ContactAction', {'action': {'op': 'delete',
                                                   'id': str_ids}})
 
-    def create_group(self, attrs, members, folder_id=None, tags=None):
-        """Create a contact group
-
-        XML example :
-        <cn l="7> ## ContactSpec
-            <a n="lastName">MARTIN</a>
-            <a n="firstName">Pierre</a>
-            <a n="email">pmartin@example.com</a>
-        </cn>
-        Which would be in zimsoap : attrs = { 'lastname': 'MARTIN',
-                                        'firstname': 'Pierre',
-                                        'email': 'pmartin@example.com' }
-                                    folder_id = 7
-
-        :param folder_id: a string of the ID's folder where to create
-        contact. Default '7'
-        :param tags:     comma-separated list of tag names
-        :param members:  list of dict. Members with their type. Example
-        {'type': 'I', 'value': 'manual_addresse@example.com'}.
-        :param attrs:   a dictionary of attributes to set ({key:value,...}). At
-        least one attr is required
-        :returns:       the created zobjects.Contact
+    def add_group_members(self, group, members):
         """
-        cn = {}
-        cn['m'] = members
 
-        if folder_id:
-            cn['l'] = str(folder_id)
-        if tags:
-            cn['tn'] = tags
+        :param group: a zobject contact to use as selector
+        :type group: zobjects.mail.Contact
 
-        attrs = [{'n': k, '_content': v} for k, v in attrs.items()]
-        attrs.append({'n': 'type', '_content': 'group'})
-        cn['a'] = attrs
-        resp = self.request_single('CreateContact', {'cn': cn})
+        :param members: a list of zobject ContactGroupMember
+        :type members: [zobjects.mail.ContactGroupMember]
 
-        return zobjects.mail.Contact.from_dict(resp)
+        :returns: the modified zobject
+        :rtype: zobjects.mail.Contact
+        """
+        params = {'cn': {'id': group.id, 'm': []}}
+
+        for member in members:
+            m = {
+                'op': '+',
+                'type': member.type,
+                'value': member.value
+            }
+            params['cn']['m'].append(m)
+
+        return self.request_single(
+            'ModifyContact', params, zobjects.mail.Contact)
+
+    def remove_group_members(self, group, members):
+        """
+
+        :param group: a zobject contact to use as selector
+        :type group: zobjects.mail.Contact
+
+        :param members: a list of zobject ContactGroupMember
+        :type members: [zobjects.mail.ContactGroupMember]
+
+        :returns: the modified zobject
+        :rtype: zobjects.mail.Contact
+        """
+        params = {'cn': {'id': group.id, 'm': []}}
+
+        for member in members:
+            m = {
+                'op': '-',
+                'type': member.type,
+                'value': member.value
+            }
+            params['cn']['m'].append(m)
+
+        return self.request_single(
+            'ModifyContact', params, zobjects.mail.Contact)
+
+    def delete_groups(self, groups):
+        """ Delete selected contacts for the current user
+
+        :param groups: a list of Contacts object to use as filter
+        :type groups: [zobjects.mail.Contact]
+
+        :returns: None (the API returns nothing)
+        """
+
+        str_ids = self._return_comma_list(groups)
+        self.request('ContactAction', {'action': {'op': 'delete',
+                                                  'id': str_ids}})

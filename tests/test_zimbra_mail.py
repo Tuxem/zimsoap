@@ -14,7 +14,12 @@ from zimsoap.exceptions import ZimbraSoapServerError
 from zimsoap.client.mail import ZimbraMailClient
 from zimsoap.client.admin import ZimbraAdminClient
 from zimsoap.zobjects.admin import Account
-from zimsoap.zobjects.mail import Task, Contact, FilterRule
+from zimsoap.zobjects.mail import (
+    Task,
+    Contact,
+    ContactGroupMember,
+    FilterRule,
+)
 from zimsoap import utils
 import tests
 
@@ -223,27 +228,56 @@ class PythonicZimbraMailAPITests(unittest.TestCase):
         random_address = 'email' + str(random.randint(0, 10**9))
 
         # CREATE
-        attrs = {'firstName': 'Pierre',
-                 'lastName': 'MARTIN',
-                 'email': random_address}
-        contact = self.zc.create_contact(attrs=attrs)
+        params = {
+            'cn': {
+                'l': '7',
+                'a': [
+                    {
+                        'n': 'firstName',
+                        '_content': 'Pierre'
+                    },
+                    {
+                        'n': 'lastName',
+                        '_content': 'MARTIN'
+                    },
+                    {
+                        'n': 'email',
+                        '_content': random_address
+                    },
+                ]
+            }
+        }
+
+        contact = self.zc.create_contact(params=params)
 
         self.assertIsInstance(contact, Contact)
-        self.assertEqual(contact._a_tags.get('email'), random_address)
+        self.assertEqual(contact['email'], random_address)
 
         # GET
-        contacts = self.zc.get_contacts(ids=contact.id)
+        contacts = self.zc.get_contacts()
         self.assertIsInstance(contacts[0], Contact)
 
         # MODIFY
+        params = {
+            'replace': True,
+            'cn': {
+                'id': contact.id,
+                'a': [
+                    {
+                        'n': 'firstName',
+                        '_content': 'Marie'
+                    }
+                ]
+            }
+        }
         contact = self.zc.modify_contact(
-            contact.id, attrs={'firstName': 'Marie'})
-        self.assertEqual(contact._a_tags.get('firstName'), 'Marie')
+            contact.id, params=params)
+        self.assertEqual(contact['firstName'], 'Marie')
 
         # DELETE
-        self.zc.delete_contacts([contact.id])
-        with self.assertRaises(ZimbraSoapServerError):
-            self.zc.get_contacts(ids=contact.id)
+        self.zc.delete_contacts([contact])
+        contacts = self.zc.get_contacts()
+        self.assertEqual(contacts, [])
 
     def test_create_delete_group(self):
         random_address = 'email' + str(random.randint(0, 10**9))
@@ -252,25 +286,37 @@ class PythonicZimbraMailAPITests(unittest.TestCase):
         # CREATE
 
         # create a contact to add into the group
-        contact_attrs = {
-            'firstName': 'Pierre',
-            'lastName': 'MARTIN',
-            'email': random_address
-        }
-        contact = self.zc.create_contact(attrs=contact_attrs)
+        contact_params = {
+                    'cn': {
+                        'l': '7',
+                        'a': [
+                            {
+                                'n': 'firstName',
+                                '_content': 'Pierre'
+                            },
+                            {
+                                'n': 'lastName',
+                                '_content': 'MARTIN'
+                            },
+                            {
+                                'n': 'email',
+                                '_content': random_address
+                            },
+                        ]
+                    }
+                }
+
+        contact = self.zc.create_contact(attrs=contact_params)
 
         members = [
-            {'type': 'C', 'value': contact.id},
-            {'type': 'I', 'value': 'manual_addresse@example.com'},
-            {'type': 'G',
-             'value': 'uid=albacore,ou=people,dc=zimbratest,dc=example,dc=com'}
+            ContactGroupMember(type='I', value=contact.id),
+            ContactGroupMember(type='C', value='manual_addresse@example.com'),
+            ContactGroupMember(
+                type='G',
+                value='uid=albacore,ou=people,dc=zimbratest,dc=example,dc=com')
         ]
 
-        group_attrs = {
-            'nickname': group_name,
-        }
-
-        group = self.zc.create_group(attrs=group_attrs, members=members)
+        group = self.zc.create_group(name=group_name, members=members)
 
         self.assertIsInstance(group, Contact)
         self.assertEqual(group['nickname'], group_name)
@@ -279,15 +325,13 @@ class PythonicZimbraMailAPITests(unittest.TestCase):
         # Not needed since it's the same for a contact
 
         # MODIFY
-        group = self.zc.modify_contact(group.id, members=[
-            {'type': 'I', 'value': 'another_manual@example.com', 'op': '+'}])
-        self.assertEqual(len(group.m), 4)
+        # Not implemented. You may use modify_contact
 
         # DELETE
-        self.zc.delete_contacts([group.id])
-        with self.assertRaises(ZimbraSoapServerError):
-            self.zc.get_contacts(ids=group.id)
-        self.zc.delete_contacts([contact.id])
+        self.zc.delete_groups([group])
+        self.zc.delete_contacts([contact])
+        contacts = self.zc.get_contacts()
+        self.assertEqual(contacts, [])
 
     # Conversation
 

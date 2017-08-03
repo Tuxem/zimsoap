@@ -123,6 +123,7 @@ class ZObject(object):
         :type dic:  dict
         """
         for k, v in dic.items():
+            # setattr(self, k, v)
             # We ignore the properties array, it will be handled separately
             if (k != '_content' and k != self.PROPERTY_TAG_NAME):
                 try:

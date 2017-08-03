@@ -24,7 +24,6 @@ class MethodMixin:
         }
 
         new_rules = [zobjects.mail.FilterRule.from_dict(new_rule)]
-
         prev_rules = self.get_filter_rules(way=way)
 
         # if there is already some rules
@@ -41,22 +40,21 @@ class MethodMixin:
                 'filterRule': [r._full_data for r in new_rules]
             }
         }
+
         if way == 'in':
             self.request('ModifyFilterRules', content)
         elif way == 'out':
             self.request('ModifyOutgoingFilterRules', content)
         return new_rules
 
-    def get_filter_rule(self, _filter, way='in'):
+    def get_filter_rule(self, zfilter, way='in'):
         """ Return the filter rule
 
-        :param: _filter a zobjects.FilterRule or the filter name
+        :param: zfilter a zobjects.FilterRule
         :param: way string discribing if filter is for 'in' or 'out' messages
         :returns: a zobjects.FilterRule"""
-        if isinstance(_filter, zobjects.mail.FilterRule):
-            _filter = _filter.name
         for f in self.get_filter_rules(way=way):
-            if f.name == _filter:
+            if f.name == zfilter.name:
                 return f
         return None
 
@@ -65,35 +63,25 @@ class MethodMixin:
         :param: way string discribing if filter is for 'in' or 'out' messages
         :returns: list of zobjects.FilterRule
         """
-        try:
-            if way == 'in':
-                filters = self.request(
-                    'GetFilterRules')['filterRules']['filterRule']
-            elif way == 'out':
-                filters = self.request(
-                    'GetOutgoingFilterRules')['filterRules']['filterRule']
 
-            # Zimbra return a dict if there is only one instance
-            if isinstance(filters, dict):
-                filters = [filters]
+        if way == 'in':
+            resp = self.request('GetFilterRules')
+        elif way == 'out':
+            resp = self.request('GetOutgoingFilterRules')
+        return [zobjects.mail.FilterRule.from_dict(i)
+                for i in resp['filterRules']['filterRule']]
 
-            return [zobjects.mail.FilterRule.from_dict(f) for f in filters]
-        except KeyError:
-            return []
-
-    def apply_filter_rule(self, _filter, query='in:inbox', way='in'):
+    def apply_filter_rule(self, zfilter, query='in:inbox', way='in'):
         """
-        :param: _filter _filter a zobjects.FilterRule or the filter name
+        :param: zfilter a zobjects.FilterRule
         :param: query on what will the filter be applied
         :param: way string discribing if filter is for 'in' or 'out' messages
         :returns: list of impacted message's ids
         """
-        if isinstance(_filter, zobjects.mail.FilterRule):
-            _filter = _filter.name
 
         content = {
             'filterRules': {
-                'filterRule': {'name': _filter}
+                'filterRule': {'name': zfilter.name}
                 },
             'query': {'_content': query}
         }
@@ -107,7 +95,7 @@ class MethodMixin:
         else:
             return []
 
-    def delete_filter_rule(self, _filter, way='in'):
+    def delete_filter_rule(self, zfilter, way='in'):
         """ delete a filter rule
 
         :param: _filter a zobjects.FilterRule or the filter name
@@ -117,12 +105,9 @@ class MethodMixin:
         updated_rules = []
         rules = self.get_filter_rules(way=way)
 
-        if isinstance(_filter, zobjects.mail.FilterRule):
-            _filter = _filter.name
-
         if rules:
             for rule in rules:
-                if not rule.name == _filter:
+                if not rule.name == zfilter.name:
                     updated_rules.append(rule)
 
         if rules != updated_rules:

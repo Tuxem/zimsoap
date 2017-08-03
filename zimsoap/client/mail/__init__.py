@@ -32,20 +32,18 @@ class ZimbraMailClient(
             server_host, server_port,
             *args, **kwargs)
 
-    def _return_comma_list(self, l):
-        """ get a list and return a string with comma separated list values
-        Examples ['to', 'ta'] will return 'to,ta'.
+    def _return_comma_list(self, zobjects):
+        """ get a list of zobjects and return a string with comma separated
+        list values.
         """
-        if isinstance(l, (text_type, int)):
-            return l
+        l = ''
 
-        if not isinstance(l, list):
-            raise TypeError(l, ' should be a list of integers, \
-not {0}'.format(type(l)))
+        for zobject in zobjects:
+            l += str(zobject.id) + ','
 
-        str_ids = ','.join(str(i) for i in l)
+        l = l[:-1]
 
-        return str_ids
+        return l
 
     def is_session_valid(self):
         # zimbraMail does not have an Auth request, so create a
