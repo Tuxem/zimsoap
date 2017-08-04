@@ -100,7 +100,7 @@ class Config(ZObject):
 
         (<a n="{key}" />)*
     """
-    TAG_NAME = None
+    pass
 
 
 class COS(ZObject):

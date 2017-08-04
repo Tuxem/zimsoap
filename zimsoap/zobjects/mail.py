@@ -74,6 +74,22 @@ class FilterRule(ZObject):
     """
     TAG_NAME = 'filterRule'
 
+    ALLOWED_TESTS = [
+        "addressBookTest", "addressTest", "attachmentTest", "bodyTest",
+        "bulkTest", "contactRankingTest", "conversationTest",
+        "currentDayOfWeekTest", "currentTimeTest", "dateTest",
+        "facebookTest", "flaggedTest", "headerExistsTest", "headerTest",
+        "importanceTest", "inviteTest", "linkedinTest", "listTest",
+        "meTest", "mimeHeaderTest", "sizeTest", "socialcastTest",
+        "trueTest", "twitterTest", "communityRequestsTest",
+        "communityContentTest", "communityConnectionsTest"
+    ]
+    ALLOWED_ACTIONS = [
+        "actionKeep", "actionDiscard", "actionFileInto", "actionFlag",
+        "actionTag", "actionRedirect", "actionReply", "actionNotify",
+        "actionStop"
+        ]
+
     @classmethod
     def from_dict(cls, d):
         tests = []
@@ -90,23 +106,39 @@ class FilterRule(ZObject):
 
         return o
 
+    def to_creator(self):
+        """ Returns a dict suitable for Create or Modify requests
+
+        :returns: the creator dictionary
+        :rtype:   dict
+        """
+        c = {
+            'name': self.name,
+            'active': self.active,
+            'filterActions': {},
+            'filterTests': {}
+        }
+        for action in self.actions:
+            c['filterActions'] = dict(
+                list(c['filterActions'].items()) +
+                list(action._full_data.items())
+            )
+        for test in self.tests:
+            c['filterTests'] = dict(
+                list(c['filterTests'].items()) +
+                list(test._full_data.items())
+            )
+
+        return c
+
 
 class FilterRuleTests(ZObject):
+
     @classmethod
     def from_dict(cls, d):
         tests = {}
 
-        attrs = [
-            "addressBookTest", "addressTest", "attachmentTest", "bodyTest",
-            "bulkTest", "contactRankingTest", "conversationTest",
-            "currentDayOfWeekTest", "currentTimeTest", "dateTest",
-            "facebookTest", "flaggedTest", "headerExistsTest", "headerTest",
-            "importanceTest", "inviteTest", "linkedinTest", "listTest",
-            "meTest", "mimeHeaderTest", "sizeTest", "socialcastTest",
-            "trueTest", "twitterTest", "communityRequestsTest",
-            "communityContentTest", "communityConnectionsTest"
-        ]
-        for attr in attrs:
+        for attr in FilterRule.ALLOWED_TESTS:
             if attr in d.keys():
                 cl_name = 'Filter' + attr[0].upper() + attr[1::]
                 tests[attr] = globals()[cl_name].from_dict(d[attr])
@@ -231,12 +263,7 @@ class FilterRuleActions(ZObject):
     def from_dict(cls, d):
         actions = {}
 
-        attrs = [
-            "actionKeep", "actionDiscard", "actionFileInto", "actionFlag",
-            "actionTag", "actionRedirect", "actionReply", "actionNotify",
-            "actionStop"
-        ]
-        for attr in attrs:
+        for attr in FilterRule.ALLOWED_ACTIONS:
             if attr in d.keys():
                 cl_name = 'Filter' + attr[0].upper() + attr[1::]
                 actions[attr] = globals()[cl_name].from_dict(d[attr])

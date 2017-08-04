@@ -4,40 +4,24 @@ from zimsoap.exceptions import ZimSOAPException
 
 class MethodMixin:
     def add_filter_rule(
-            self, name, condition, filters, actions, active=1, way='in'):
+            self, zfilter, way='in'):
         """
-        :param: name filter name
-        :param: condition allof or anyof
-        :param: filters dict of filters
-        :param: actions dict of actions
+        :param: zfilter zobjects.FilterRule
         :param: way string discribing if filter is for 'in' or 'out' messages
         :returns: list of user's zobjects.FilterRule
         """
 
-        filters['condition'] = condition
-
-        new_rule = {
-            'name': name,
-            'active': active,
-            'filterTests': filters,
-            'filterActions': actions
-        }
-
-        new_rules = [zobjects.mail.FilterRule.from_dict(new_rule)]
-        prev_rules = self.get_filter_rules(way=way)
-
-        # if there is already some rules
-        if prev_rules:
-            for rule in prev_rules:
-                # don't add rule if it already exist
-                if rule.name == new_rules[0].name:
-                    raise ZimSOAPException(
-                        'filter %s already exists' % rule.name)
-            new_rules = new_rules + prev_rules
+        rules = self.get_filter_rules(way=way)
+        for rule in rules:
+            # don't add rule if it already exist
+            if rule.name == zfilter.name:
+                raise ZimSOAPException(
+                    'filter %s already exists' % rule.name)
+        rules.append(zfilter)
 
         content = {
             'filterRules': {
-                'filterRule': [r._full_data for r in new_rules]
+                'filterRule': [r.to_creator() for r in rules]
             }
         }
 
@@ -45,7 +29,7 @@ class MethodMixin:
             self.request('ModifyFilterRules', content)
         elif way == 'out':
             self.request('ModifyOutgoingFilterRules', content)
-        return new_rules
+        return rules
 
     def get_filter_rule(self, zfilter, way='in'):
         """ Return the filter rule
@@ -68,8 +52,15 @@ class MethodMixin:
             resp = self.request('GetFilterRules')
         elif way == 'out':
             resp = self.request('GetOutgoingFilterRules')
-        return [zobjects.mail.FilterRule.from_dict(i)
-                for i in resp['filterRules']['filterRule']]
+        if resp['filterRules']:
+            if isinstance(resp['filterRules']['filterRule'], list):
+                return [zobjects.mail.FilterRule.from_dict(i)
+                        for i in resp['filterRules']['filterRule']]
+            else:
+                return [zobjects.mail.FilterRule.from_dict(
+                    resp['filterRules']['filterRule'])]
+        else:
+            return []
 
     def apply_filter_rule(self, zfilter, query='in:inbox', way='in'):
         """
