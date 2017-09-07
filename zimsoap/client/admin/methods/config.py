@@ -11,39 +11,39 @@ class MethodMixin:
         return self.request_single('GetAllConfig', {}, zobjects.admin.Config)
 
     def get_config(self, attr):
-        """ Fetches the value of a single global config attribute
+        """ Fetches global config
+        :param attr:  the name of the config attribute to fetch
+        :type attr:   str
 
-        :param attr: the name of the config attribute
-        :type attr:  str
-
-        :returns: the value of the config attribute
-                  (a list if nulti-valued attribute)
-        :rtype:   any
+        :returns: value of global config for the specified attribute
+        :rtype:   str
         """
-        config = self.request_single(
-            'GetConfig', {'a': {'n': attr}}, zobjects.admin.Config)
-        if attr in config.properties():
-            return config[attr]
-        else:
-            raise KeyError('{} not found'.format(attr))
 
-    def modify_config(self, attr, value):
+        gacf = self.get_all_config()
+        try:
+            return gacf.property(attr)
+        except KeyError:
+            raise Exception('no attribute "{}" in global config'.format(attr))
+
+    def modify_config(self, config):
         """ Sets the value a global config attribute
 
-        :param attr:  the name of the config attribute
-        :type attr:   str
-        :param value: the desired value for the attribute
-        :type value:  str
+        :param value: a zobjects.config with values to modify
+        :type value:  zobjects.config
 
-        :returns: the value of the attribute fetched from Zimbra
-                  after modification
-        :rtype:   [str]
+        :returns: all configuration
+        :rtype:   zobjects.config
         """
-        self.request('ModifyConfig', {
-            'a': {
-                'n': attr,
-                '_content': value
-            }})
-        if attr[0] == '-' or attr[0] == '+':
-            attr = attr[1::]
-        return self.get_config(attr)
+
+        immuables_attr = [
+            'zimbraProduct',
+            'zimbraAuthTokenKey',
+            'zimbraExternalAccountProvisioningKey',
+            'zimbraCsrfTokenKey',
+            'zimbraMtaSmtpSaslSecurityOptions'
+        ]
+        for attr in immuables_attr:
+            config.remove_property(attr)
+
+        self.request('ModifyConfig', config.to_creator())
+        return self.get_all_config()

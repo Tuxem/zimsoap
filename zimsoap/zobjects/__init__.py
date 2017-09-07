@@ -208,8 +208,20 @@ class ZObject(object):
         prop_tags = []
 
         for k, v in attrs_dict.items():
-            node = {cls.PROPERTY_NAME_ATTR: k, '_content': utils.auto_type(v)}
-            prop_tags.append(node)
+            if isinstance(v, list):
+                for val in v:
+                    node = {
+                        cls.PROPERTY_NAME_ATTR: k,
+                        '_content': utils.auto_untype(val)
+                    }
+                    prop_tags.append(node)
+            else:
+                node = {
+                    cls.PROPERTY_NAME_ATTR: k,
+                    '_content': utils.auto_untype(v)
+                }
+
+                prop_tags.append(node)
 
         return prop_tags
 
@@ -220,6 +232,62 @@ class ZObject(object):
         :rtype:   dict
         """
         return self._full_data
+
+    def add_property(self, name, value):
+        """ Add a property to the zobjects
+
+        :param name:  the name property to add
+        :type name:   str
+        :param attr:  the name of the property's value to add
+        :type attr:   str
+
+        :returns: the modified zobject
+        :rtype:   zobject
+        """
+        if self._props:
+            if isinstance(self._props, list):
+                self._props[name].append(value)
+            else:
+                prev_values = self._props[name]
+                self._props[name] = [value]
+                for val in prev_values:
+                    self._props[name].append(val)
+        else:
+            self._props[name] = value
+
+        return self
+
+    def remove_property(self, name, value=None):
+        """ Remove a property from the zobject
+
+        :param name:  the name property to remove
+        :type name:   str
+        :param attr:  the name of the property's value to remove
+        :type attr:   str
+
+        :returns: the modifed zobject
+        :rtype:   zobject
+        """
+        if value:
+            if isinstance(self._props[name], list):
+                items_to_del = []
+                for i, val in enumerate(self._props[name]):
+                    if val == value:
+                        items_to_del.append(i)
+
+                # change the value in the list since we alter this list
+                deleted = 0
+                for item in items_to_del:
+                    index = item - deleted
+                    del self._props[name][index]
+                    deleted += 1
+            else:
+                if self._props[name] == value:
+                    self._props.pop(name)
+        else:
+            self._props.pop(name)
+
+        return self
 
     def has_property(self, name):
         """ Check if the ZObject has a property matching provided name

@@ -64,33 +64,30 @@ def get_content(obj):
 def auto_type(val):
     """ Get a XML response and tries to convert it to Python base object
     """
-    try:
-        s = str(val)
-    except UnicodeEncodeError:
-        # Some times, str() fails because of accents...
-        s = val
 
-    if isinstance(s, bool):
-        return s
-    elif s is None:
+    if isinstance(val, bool):
+        return val
+    elif val is None:
         return ''
-    elif s == 'TRUE':
+    elif val == 'TRUE':
         return True
-    elif s == 'FALSE':
+    elif val == 'FALSE':
         return False
     else:
-        try:
-            try:
-                # telephone numbers may be wrongly interpretted as ints
-                if s.startswith('+'):
-                    return s
-                else:
-                    return int(s)
-            except ValueError:
-                return float(s)
-
-        except ValueError:
-            return s
+        return val
+    # else:
+    #     try:
+    #         try:
+    #             # telephone numbers may be wrongly interpretted as ints
+    #             if val.startswith('+'):
+    #                 return val
+    #             else:
+    #                 return int(val)
+    #         except ValueError:
+    #             return float(val)
+    #
+    #     except ValueError:
+    #         return val
 
 
 def auto_untype(arg):
